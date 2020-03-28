@@ -12,7 +12,7 @@ def get_filename_from_url(url):
 
 
 def get_cleaned_folder_name(name):
-    return name.replace(' ', '_').replace(':', '').replace('/', '-')
+    return name.strip().replace('_', ' ').replace(':', '-').replace('/', '-')
 
 
 def retrying_download(url, ttl=20):
@@ -25,7 +25,7 @@ def retrying_download(url, ttl=20):
         return retrying_download(url, ttl=ttl - 1)
 
 
-def download_thing(thing_id, folder):
+def download_thing(thing_id, folder, token):
     if not os.path.exists(folder):
         os.mkdir(folder)
 
@@ -54,7 +54,7 @@ def download_thing(thing_id, folder):
             thing_file.write(response.content)
 
 
-def download_images(thing_id, folder):
+def download_images(thing_id, folder, token):
     if not os.path.exists(folder):
         os.mkdir(folder)
 
@@ -92,7 +92,8 @@ def download_image(image_obj, folder):
         shutil.move(image_path, new_path)
 
 
-def sync_collection(collection_id, folder):
+def sync_collection(collection_id, name, token):
+    folder = os.path.join('scraped', name)
     if not os.path.exists(folder):
         os.mkdir(folder)
 
@@ -115,14 +116,17 @@ def sync_collection(collection_id, folder):
             thing_id = thing['id']
             print(f'downloading {global_index}. {thing_name} ({thing_id})')
 
+            thing_folder = os.path.join(folder, get_cleaned_folder_name(thing['name']))
+            if os.path.exists(thing_folder):
+                global_index += 1
+                continue
+
             response = retrying_download(f'{base_url}/things/{thing_id}/?access_token={token}')
             if not (response and response.status_code == 200):
                 print(f'Unable to fetch info for {thing_id}: {response}')
                 continue
 
             thing_data = response.json()
-
-            thing_folder = os.path.join(folder, get_cleaned_folder_name(thing['name']))
 
             if not os.path.exists(thing_folder):
                 os.mkdir(thing_folder)
@@ -146,22 +150,9 @@ def sync_collection(collection_id, folder):
                 ancestors_file.write(json.dumps(ancestors_json, indent=2))
 
             download_image(thing_data['default_image'], thing_folder)
-            download_images(thing['id'], os.path.join(thing_folder, 'images'))
-            download_thing(thing['id'], thing_folder)
+            download_images(thing['id'], os.path.join(thing_folder, 'images'), token)
+            download_thing(thing['id'], thing_folder, token)
 
             global_index += 1
 
         page += 1
-
-
-def get_config():
-    with open('config.json', 'r') as config_file:
-        config = json.loads(config_file.read())
-    return config
-
-
-def main():
-    config = get_config()
-    token = config['token']
-    for collection in config['collections']:
-        sync_collection(collection_id, collection_folder)

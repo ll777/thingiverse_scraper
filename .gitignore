@@ -1,3 +1,4 @@
 scraped
 config.json
 .idea
+*.pyc
