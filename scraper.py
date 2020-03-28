@@ -12,7 +12,7 @@ def get_filename_from_url(url):
 
 
 def get_cleaned_folder_name(name):
-    return name.strip().replace('_', ' ').replace(':', '-').replace('/', '-')
+    return name.replace('_', ' ').replace(':', '-').replace('/', '-').strip()
 
 
 def retrying_download(url, ttl=20):
